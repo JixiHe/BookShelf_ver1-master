@@ -2,85 +2,112 @@ package com.example.bookshelf;
 
 import android.content.Context;
 import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
+
+import androidx.fragment.app.Fragment;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class BookListFragment extends Fragment {
+    private BookAdapter adapter;
 
-    private static final String BOOK_LIST_KEY = "booklist";
-    private ArrayList<HashMap<String, String>> books;
-
-    BookSelectedInterface parentActivity;
-
-    public BookListFragment() {}
-
-    public static BookListFragment newInstance(ArrayList<HashMap<String, String>> books) {
-        BookListFragment fragment = new BookListFragment();
-        Bundle args = new Bundle();
-
-        /*
-         A HashMap implements the Serializable interface
-         therefore we can place a HashMap inside a bundle
-         by using that put() method.
-         */
-        args.putSerializable(BOOK_LIST_KEY, books);
-        fragment.setArguments(args);
-        return fragment;
+    public void addSelectListener(OnItemSelectedListener listener){
+        this.listener = listener;
     }
 
-    @Override
-    public void onAttach(Context context) {
-        super.onAttach(context);
 
-        /*
-         This fragment needs to communicate with its parent activity
-         so we verify that the activity implemented our known interface
-         */
-        if (context instanceof BookSelectedInterface) {
-            parentActivity = (BookSelectedInterface) context;
-        } else {
-            throw new RuntimeException("Please implement the required interface(s)");
+
+
+
+    public interface OnItemSelectedListener{
+        void onItemSelected(Book book);
+    }
+    private OnItemSelectedListener listener;
+
+    ArrayList<Book> books= new ArrayList<>();
+
+    public static BookListFragment newInstance() {
+        BookListFragment bookListFragment = new BookListFragment();
+        return bookListFragment;
+    }
+
+    public void setBooks(JSONArray jsonArray) {
+        books.clear();
+        for(int i = 0 ; i < jsonArray.length(); i++){
+            JSONObject jsonObject = jsonArray.optJSONObject(i);
+            Book book = new Book();
+            book.id = jsonObject.optInt("book_id");
+            book.title = jsonObject.optString("title");
+            book.author= jsonObject.optString("author");
+            book.published = jsonObject.optInt("published");
+            book.cover_url= jsonObject.optString("cover_url");
+            books.add(book);
         }
+        adapter.notifyDataSetChanged();
     }
-
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            books = (ArrayList) getArguments().getSerializable(BOOK_LIST_KEY);
-        }
-    }
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        final ListView listView = (ListView) inflater.inflate(R.layout.fragment_list_book,container,false);
+        adapter = new BookAdapter(getActivity() , books);
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        ListView listView = (ListView) inflater.inflate(R.layout.fragment_book_list, container, false);
-
-        listView.setAdapter(new BooksAdapter(getContext(), books));
+        listView.setAdapter(adapter);
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                parentActivity.bookSelected(position);
+                if (listener!=null){
+                    listener.onItemSelected(books.get(position));
+                }
             }
         });
+
+        adapter.notifyDataSetChanged();
 
         return listView;
     }
 
-    /*
-    Interface for communicating with attached activity
-     */
-    interface BookSelectedInterface {
-        void bookSelected(int index);
+    public class BookAdapter extends BaseAdapter {
+        Context context;
+        ArrayList<Book> books;
+
+        public BookAdapter(Context context, ArrayList <Book> books){
+            this.context = context;
+            this.books = books;
+        }
+        @Override
+        public int getCount() {
+            return books.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return books.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            TextView textView = new TextView(context);
+            textView.setText(books.get(position).title);
+            textView.setTextSize(20);
+            return textView;
+        }
     }
+
 }
